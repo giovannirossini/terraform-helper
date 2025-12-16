@@ -1,9 +1,9 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/giovannirossini/markdown-render/render"
 )
@@ -15,41 +15,63 @@ type Config struct {
 	IsDataSource bool
 }
 
+func printUsage() {
+	fmt.Fprintf(os.Stderr, "Usage: terraform-helper <provider> <name> [flags]\n\n")
+	fmt.Fprintf(os.Stderr, "Arguments:\n")
+	fmt.Fprintf(os.Stderr, "  provider    Provider name (e.g., aws, google, azurerm)\n")
+	fmt.Fprintf(os.Stderr, "  name        Resource or data source name (partial matching supported)\n\n")
+	fmt.Fprintf(os.Stderr, "Flags:\n")
+	fmt.Fprintf(os.Stderr, "  -r, --resource      Search in resources (default)\n")
+	fmt.Fprintf(os.Stderr, "  -d, --datasource    Search in data sources\n\n")
+	fmt.Fprintf(os.Stderr, "Examples:\n")
+	fmt.Fprintf(os.Stderr, "  terraform-helper aws api_gateway\n")
+	fmt.Fprintf(os.Stderr, "  terraform-helper aws api_gateway_deployment -r\n")
+	fmt.Fprintf(os.Stderr, "  terraform-helper google compute_instance\n")
+	fmt.Fprintf(os.Stderr, "  terraform-helper azurerm virtual_machine -d\n")
+}
+
 func main() {
-	// Define flags
-	resourceFlag := flag.Bool("r", false, "Search in resources (default)")
-	resourceFlagLong := flag.Bool("resource", false, "Search in resources (default)")
-	datasourceFlag := flag.Bool("d", false, "Search in data sources")
-	datasourceFlagLong := flag.Bool("datasource", false, "Search in data sources")
-
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: terraform-helper <provider> <name> [flags]\n\n")
-		fmt.Fprintf(os.Stderr, "Arguments:\n")
-		fmt.Fprintf(os.Stderr, "  provider    Provider name (e.g., aws, google, azurerm)\n")
-		fmt.Fprintf(os.Stderr, "  name        Resource or data source name (partial matching supported)\n\n")
-		fmt.Fprintf(os.Stderr, "Flags:\n")
-		fmt.Fprintf(os.Stderr, "  -r, --resource      Search in resources (default)\n")
-		fmt.Fprintf(os.Stderr, "  -d, --datasource    Search in data sources\n\n")
-		fmt.Fprintf(os.Stderr, "Examples:\n")
-		fmt.Fprintf(os.Stderr, "  terraform-helper aws api_gateway\n")
-		fmt.Fprintf(os.Stderr, "  terraform-helper aws api_gateway_deployment -r\n")
-		fmt.Fprintf(os.Stderr, "  terraform-helper google compute_instance\n")
-		fmt.Fprintf(os.Stderr, "  terraform-helper azurerm virtual_machine -d\n")
+	// Manual flag parsing to support flags after positional arguments
+	var isResource, isDataSource bool
+	var provider, searchTerm string
+	
+	// Parse arguments manually
+	args := os.Args[1:]
+	var positionalArgs []string
+	
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "-r", "--resource":
+			isResource = true
+		case "-d", "--datasource":
+			isDataSource = true
+		case "-h", "--help":
+			printUsage()
+			os.Exit(0)
+		default:
+			if strings.HasPrefix(arg, "-") {
+				fmt.Fprintf(os.Stderr, "Error: Unknown flag: %s\n", arg)
+				printUsage()
+				os.Exit(1)
+			}
+			positionalArgs = append(positionalArgs, arg)
+		}
 	}
-
-	flag.Parse()
-
-	args := flag.Args()
-	if len(args) < 2 {
-		flag.Usage()
+	
+	if len(positionalArgs) < 2 {
+		printUsage()
 		os.Exit(1)
 	}
+	
+	provider = positionalArgs[0]
+	searchTerm = positionalArgs[1]
 
 	config := Config{
-		Provider:     args[0],
-		SearchTerm:   args[1],
-		IsResource:   *resourceFlag || *resourceFlagLong,
-		IsDataSource: *datasourceFlag || *datasourceFlagLong,
+		Provider:     provider,
+		SearchTerm:   searchTerm,
+		IsResource:   isResource,
+		IsDataSource: isDataSource,
 	}
 
 	// Default to resource if neither flag is specified
