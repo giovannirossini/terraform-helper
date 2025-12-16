@@ -13,6 +13,7 @@ type Config struct {
 	SearchTerm   string
 	IsResource   bool
 	IsDataSource bool
+	UseCDKTF     bool
 }
 
 func printUsage() {
@@ -22,17 +23,19 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  name        Resource or data source name (partial matching supported)\n\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	fmt.Fprintf(os.Stderr, "  -r, --resource      Search in resources (default)\n")
-	fmt.Fprintf(os.Stderr, "  -d, --datasource    Search in data sources\n\n")
+	fmt.Fprintf(os.Stderr, "  -d, --datasource    Search in data sources\n")
+	fmt.Fprintf(os.Stderr, "  --cdktf             Use CDKTF TypeScript documentation\n\n")
 	fmt.Fprintf(os.Stderr, "Examples:\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper aws api_gateway\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper aws api_gateway_deployment -r\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper google compute_instance\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper azurerm virtual_machine -d\n")
+	fmt.Fprintf(os.Stderr, "  terraform-helper aws lambda_function --cdktf\n")
 }
 
 func main() {
 	// Manual flag parsing to support flags after positional arguments
-	var isResource, isDataSource bool
+	var isResource, isDataSource, useCDKTF bool
 	var provider, searchTerm string
 	
 	// Parse arguments manually
@@ -46,6 +49,8 @@ func main() {
 			isResource = true
 		case "-d", "--datasource":
 			isDataSource = true
+		case "--cdktf":
+			useCDKTF = true
 		case "-h", "--help":
 			printUsage()
 			os.Exit(0)
@@ -72,6 +77,7 @@ func main() {
 		SearchTerm:   searchTerm,
 		IsResource:   isResource,
 		IsDataSource: isDataSource,
+		UseCDKTF:     useCDKTF,
 	}
 
 	// Default to resource if neither flag is specified
@@ -100,7 +106,7 @@ func run(config Config) error {
 	}
 
 	// Fetch list of available resources/datasources
-	items, err := fetchProviderDocs(config.Provider, docType)
+	items, err := fetchProviderDocs(config.Provider, docType, config.UseCDKTF)
 	if err != nil {
 		return fmt.Errorf("failed to fetch %s for provider '%s': %w", docTypeName, config.Provider, err)
 	}
@@ -135,7 +141,7 @@ func run(config Config) error {
 	}
 
 	// Fetch and display the markdown
-	markdown, err := fetchDocMarkdown(config.Provider, docType, selectedItem)
+	markdown, err := fetchDocMarkdown(config.Provider, docType, selectedItem, config.UseCDKTF)
 	if err != nil {
 		return fmt.Errorf("failed to fetch markdown: %w", err)
 	}

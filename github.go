@@ -29,37 +29,44 @@ var httpClient = &http.Client{
 }
 
 // buildGitHubAPIURL constructs the GitHub API URL for the provider docs
-func buildGitHubAPIURL(provider, docType string) string {
+func buildGitHubAPIURL(provider, docType string, useCDKTF bool) string {
+	if useCDKTF {
+		return fmt.Sprintf("https://api.github.com/repos/hashicorp/terraform-provider-%s/contents/website/docs/cdktf/typescript/%s", provider, docType)
+	}
 	return fmt.Sprintf("https://api.github.com/repos/hashicorp/terraform-provider-%s/contents/website/docs/%s", provider, docType)
 }
 
 // buildGitHubTreeAPIURL constructs the GitHub Tree API URL for better performance with large directories
-func buildGitHubTreeAPIURL(provider, docType string) string {
+func buildGitHubTreeAPIURL(provider string) string {
 	// Use tree API to get all files at once, recursively
 	return fmt.Sprintf("https://api.github.com/repos/hashicorp/terraform-provider-%s/git/trees/main?recursive=1", provider)
 }
 
 // buildRawGitHubURL constructs the raw GitHub URL for the provider docs
-func buildRawGitHubURL(provider, docType string) string {
+func buildRawGitHubURL(provider, docType string, useCDKTF bool) string {
+	if useCDKTF {
+		return fmt.Sprintf("https://raw.githubusercontent.com/hashicorp/terraform-provider-%s/refs/heads/main/website/docs/cdktf/typescript/%s", provider, docType)
+	}
 	return fmt.Sprintf("https://raw.githubusercontent.com/hashicorp/terraform-provider-%s/refs/heads/main/website/docs/%s", provider, docType)
 }
 
 // fetchProviderDocs retrieves the list of all documentation files for a provider
 // docType should be "r" for resources or "d" for data sources
-func fetchProviderDocs(provider, docType string) ([]string, error) {
+// useCDKTF determines whether to use CDKTF TypeScript docs or regular Terraform docs
+func fetchProviderDocs(provider, docType string, useCDKTF bool) ([]string, error) {
 	// Try using the Git Tree API for better performance with large directories
-	items, err := fetchProviderDocsViaTree(provider, docType)
+	items, err := fetchProviderDocsViaTree(provider, docType, useCDKTF)
 	if err == nil && len(items) > 0 {
 		return items, nil
 	}
 
 	// Fallback to contents API
-	return fetchProviderDocsViaContents(provider, docType)
+	return fetchProviderDocsViaContents(provider, docType, useCDKTF)
 }
 
 // fetchProviderDocsViaTree uses GitHub's Tree API to get all files efficiently
-func fetchProviderDocsViaTree(provider, docType string) ([]string, error) {
-	apiURL := buildGitHubTreeAPIURL(provider, docType)
+func fetchProviderDocsViaTree(provider, docType string, useCDKTF bool) ([]string, error) {
+	apiURL := buildGitHubTreeAPIURL(provider)
 	
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -86,7 +93,12 @@ func fetchProviderDocsViaTree(provider, docType string) ([]string, error) {
 	}
 
 	// Filter for files in the correct directory
-	prefix := fmt.Sprintf("website/docs/%s/", docType)
+	var prefix string
+	if useCDKTF {
+		prefix = fmt.Sprintf("website/docs/cdktf/typescript/%s/", docType)
+	} else {
+		prefix = fmt.Sprintf("website/docs/%s/", docType)
+	}
 	var items []string
 	
 	for _, item := range tree.Tree {
@@ -105,8 +117,8 @@ func fetchProviderDocsViaTree(provider, docType string) ([]string, error) {
 }
 
 // fetchProviderDocsViaContents uses GitHub's Contents API (fallback method)
-func fetchProviderDocsViaContents(provider, docType string) ([]string, error) {
-	apiURL := buildGitHubAPIURL(provider, docType)
+func fetchProviderDocsViaContents(provider, docType string, useCDKTF bool) ([]string, error) {
+	apiURL := buildGitHubAPIURL(provider, docType, useCDKTF)
 	
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -144,8 +156,8 @@ func fetchProviderDocsViaContents(provider, docType string) ([]string, error) {
 }
 
 // fetchDocMarkdown fetches the raw markdown content for a specific resource or data source
-func fetchDocMarkdown(provider, docType, itemName string) (string, error) {
-	rawURL := buildRawGitHubURL(provider, docType)
+func fetchDocMarkdown(provider, docType, itemName string, useCDKTF bool) (string, error) {
+	rawURL := buildRawGitHubURL(provider, docType, useCDKTF)
 	url := fmt.Sprintf("%s/%s.html.markdown", rawURL, itemName)
 
 	req, err := http.NewRequest("GET", url, nil)
