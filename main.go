@@ -9,11 +9,11 @@ import (
 )
 
 type Config struct {
-	Provider     string
-	SearchTerm   string
-	IsResource   bool
-	IsDataSource bool
-	UseCDKTF     bool
+	Provider      string
+	SearchTerm    string
+	IsResource    bool
+	IsDataSource  bool
+	CDKTFLanguage string
 }
 
 func printUsage() {
@@ -24,24 +24,27 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	fmt.Fprintf(os.Stderr, "  -r, --resource      Search in resources (default)\n")
 	fmt.Fprintf(os.Stderr, "  -d, --datasource    Search in data sources\n")
-	fmt.Fprintf(os.Stderr, "  --cdktf             Use CDKTF TypeScript documentation\n\n")
+	fmt.Fprintf(os.Stderr, "  --cdktf [language]  Use CDKTF documentation (default: typescript)\n\n")
 	fmt.Fprintf(os.Stderr, "Examples:\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper aws api_gateway\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper aws api_gateway_deployment -r\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper google compute_instance\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper azurerm virtual_machine -d\n")
 	fmt.Fprintf(os.Stderr, "  terraform-helper aws lambda_function --cdktf\n")
+	fmt.Fprintf(os.Stderr, "  terraform-helper aws lambda_function --cdktf typescript\n")
+	fmt.Fprintf(os.Stderr, "  terraform-helper aws lambda_function --cdktf python\n")
 }
 
 func main() {
 	// Manual flag parsing to support flags after positional arguments
-	var isResource, isDataSource, useCDKTF bool
+	var isResource, isDataSource bool
+	var cdktfLanguage string
 	var provider, searchTerm string
-	
+
 	// Parse arguments manually
 	args := os.Args[1:]
 	var positionalArgs []string
-	
+
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch arg {
@@ -50,7 +53,22 @@ func main() {
 		case "-d", "--datasource":
 			isDataSource = true
 		case "--cdktf":
-			useCDKTF = true
+			// Check if next argument exists and is not a flag
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				// Check if it looks like a language name (not a positional arg)
+				nextArg := args[i+1]
+				// If we already have 2 positional args, treat next arg as language
+				if len(positionalArgs) >= 2 {
+					cdktfLanguage = nextArg
+					i++ // Skip next argument since we consumed it
+				} else {
+					// Default to typescript
+					cdktfLanguage = "typescript"
+				}
+			} else {
+				// No argument provided or next arg is a flag, default to typescript
+				cdktfLanguage = "typescript"
+			}
 		case "-h", "--help":
 			printUsage()
 			os.Exit(0)
@@ -63,21 +81,21 @@ func main() {
 			positionalArgs = append(positionalArgs, arg)
 		}
 	}
-	
+
 	if len(positionalArgs) < 2 {
 		printUsage()
 		os.Exit(1)
 	}
-	
+
 	provider = positionalArgs[0]
 	searchTerm = positionalArgs[1]
 
 	config := Config{
-		Provider:     provider,
-		SearchTerm:   searchTerm,
-		IsResource:   isResource,
-		IsDataSource: isDataSource,
-		UseCDKTF:     useCDKTF,
+		Provider:      provider,
+		SearchTerm:    searchTerm,
+		IsResource:    isResource,
+		IsDataSource:  isDataSource,
+		CDKTFLanguage: cdktfLanguage,
 	}
 
 	// Default to resource if neither flag is specified
@@ -106,7 +124,7 @@ func run(config Config) error {
 	}
 
 	// Fetch list of available resources/datasources
-	items, err := fetchProviderDocs(config.Provider, docType, config.UseCDKTF)
+	items, err := fetchProviderDocs(config.Provider, docType, config.CDKTFLanguage)
 	if err != nil {
 		return fmt.Errorf("failed to fetch %s for provider '%s': %w", docTypeName, config.Provider, err)
 	}
@@ -141,7 +159,7 @@ func run(config Config) error {
 	}
 
 	// Fetch and display the markdown
-	markdown, err := fetchDocMarkdown(config.Provider, docType, selectedItem, config.UseCDKTF)
+	markdown, err := fetchDocMarkdown(config.Provider, docType, selectedItem, config.CDKTFLanguage)
 	if err != nil {
 		return fmt.Errorf("failed to fetch markdown: %w", err)
 	}

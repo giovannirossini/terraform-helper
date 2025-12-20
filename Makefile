@@ -17,6 +17,10 @@ build:
 	@echo "Building $(BINARY_NAME) without cache..."
 	go build -a -o $(BINARY_NAME) .
 
+deploy:
+	@echo "Moving to /usr/local/bin"
+	sudo mv $(BINARY_NAME) /usr/local/bin
+
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
