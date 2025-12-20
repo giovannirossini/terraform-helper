@@ -1,10 +1,10 @@
-.PHONY: install build clean help
+.PHONY: install build deploy clean help
 
 # Binary name
 BINARY_NAME=terraform-helper
 
 # Default target
-all: install build
+all: install build deploy clean
 
 # Install dependencies
 install:
