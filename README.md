@@ -68,4 +68,4 @@ Terraform Helper is built for engineers who live in the terminal and want instan
 
 ## Demo
 
-![Demo](assets/demo.mov)
+https://github.com/user-attachments/assets/398b17d5-daf6-4133-8d59-f97324f78f5e
