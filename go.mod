@@ -3,7 +3,7 @@ module github.com/yourusername/terraform-helper
 go 1.21
 
 require (
-	github.com/giovannirossini/markdown-render v0.0.0-20251214235224-86b4a0e0f841
+	github.com/giovannirossini/markdown-render v0.0.0-20251220150545-734f5b8bb3ba
 	github.com/manifoldco/promptui v0.9.0
 )
 
@@ -15,5 +15,3 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 )
-
-replace github.com/giovannirossini/markdown-render => ../markdown-render
